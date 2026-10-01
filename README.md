@@ -1,4 +1,5 @@
 ```markdown
+Check out the Project Details folder, for more depth information there is ppt and document given in that folder. Just download the raw file and u will be able to see.
 ```
 # Cognitive Rail Maintenance Planner (CRMP)
 
