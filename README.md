@@ -1,157 +1,190 @@
 ```markdown
+```markdown
 # Cognitive Rail Maintenance Planner (CRMP)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Next.js 14](https://img.shields.io/badge/Frontend-Next.js%2014-000000.svg?logo=next.js)](https://nextjs.org)
-[![Optimization: OR-Tools](https://img.shields.io/badge/Engine-OR--Tools%20MILP-FF6F00.svg)](https://developers.google.com/optimization)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Next.js 14](https://img.shields.io/badge/Frontend-Next.js%2014-000000.svg?logo=next.js)](https://nextjs.org/)
+[![Optimization: OR-Tools](https://img.shields.io/badge/Engine-OR--Tools-FF6F00.svg)](https://developers.google.com/optimization)
 
-CRMP is an agentic decision intelligence framework designed to solve cross-departmental track block scheduling conflicts in high-density railway corridors. Developed for the Indian Railways network, the framework coordinates spatial-temporal constraints across Track Engineering, Signalling & Telecommunication (S&T), and Traction/Overhead Equipment (OHE) departments to optimize corridor possession windows and mitigate delay propagation.
+CRMP is a decision-support framework for coordinating track maintenance across high-density railway corridors. It brings together requests from Track Engineering, Signalling & Telecommunication (S&T), and Traction/Overhead Equipment (OHE) teams to help plan shared maintenance windows, evaluate timetable conflicts, and present recommendations for human review.
 
----
+> **Operational note:** CRMP is a planning aid, not a railway interlocking or movement-authority system. All recommendations must be reviewed and approved by authorized railway personnel before operational use.
 
-## Abstract & Operational Context
+## Overview
 
-Railway infrastructure maintenance in saturated networks requires balancing infrastructure degradation rates with network line capacity. Under conventional operational protocols, Track, Signalling, and Traction departments submit corridor closure requisitions independently. This decoupled workflow causes:
+In busy railway networks, maintenance teams may request corridor closures independently. This can lead to:
 
-1. **Repetitive Corridor Possessions:** Fragmented closures multiply setup and tear-down overheads, reducing available revenue-service time paths.
-2. **Cascading Delays:** Uncoordinated maintenance slots force unplanned speed restrictions and upstream path throttles across passenger and freight schedules.
-3. **Sub-optimal Asset Utilization:** Specialized maintenance machinery and crew deployments suffer high idle times due to clearance misalignments.
+- Repeated possessions of the same corridor, increasing setup and clearance overhead.
+- Timetable conflicts and delays that propagate to other services.
+- Crew and maintenance equipment waiting for access or clearance.
 
-CRMP introduces a mixed-integer linear programming (MILP) and agentic orchestration pipeline that bundles multi-departmental requests into synchronized, multi-objective maintenance blocks, dynamically resolving timetable conflicts with human-in-the-loop dispatch validation.
+CRMP is designed to combine compatible work requests into coordinated possession windows while accounting for spatial, temporal, resource, and timetable constraints.
 
----
+## Decision pipeline
 
-## Agentic Decision Pipeline
-
-
+```text
+Fault reports and asset telemetry
+                 │
+                 ▼
+       Ingestion and validation
+                 │
+                 ▼
+       Request bundling and solver
+                 │
+                 ▼
+       Timetable conflict evaluation
+                 │
+                 ▼
+       Recommendation for controller review
 ```
 
+The pipeline has four main stages:
+
+1. **Ingestion and validation**  
+   Processes maintenance requests, telemetry, and inspection records; validates required fields and maps requests to track segments.
+
+2. **Corridor bundling and scheduling**  
+   Identifies requests that may be coordinated into shared possession windows, subject to track, crew, equipment, and clearance constraints.
+
+3. **Timetable conflict evaluation**  
+   Evaluates candidate windows against train schedules and estimates potential timetable impacts.
+
+4. **Human approval**  
+   Presents a recommendation and supporting information for review by an authorized Section Controller. Approval remains a human responsibility.
+
+## Optimization model
+
+The scheduling objective is to balance projected train delay, possession overhead, and equipment idle or transfer time:
+
+```text
+Minimize:
+  Z = α × total projected train delay
+    + β × total possession cost
+    + γ × total equipment idle and transfer time
 ```
-                              [Ingestion Layer]
- Field Fault Telemetry │ Ultrasonic Flaw Logs │ Overhead Wire Wear Logs
-                                     │
-                                     ▼
-                         ┌───────────────────────┐
-                         │    Ingestion Agent    │
-                         │  (Severity / Priority)│
-                         └───────────┬───────────┘
-                                     │
-                                     ▼
-                         ┌───────────────────────┐
-                         │  Bundling & MILP Core │
-                         │  (Spatial-Temporal)   │
-                         └───────────┬───────────┘
-                                     │
-                                     ▼
-                         ┌───────────────────────┐
-                         │ Timetable Simulation  │
-                         │  (Conflict Resolver)  │
-                         └───────────┬───────────┘
-                                     │
-                                     ▼
-                        [Section Controller Gate]
-                    (Deterministic Human Validation)
-
-```
-
-```
-
-The system executes four sequential agentic routines:
-
-* **Ingestion & Validation Engine:** Ingests unstructured fault notifications, geotagged ultrasonic rail flaw detection (USFD) outputs, and telemetry logs, mapping tickets to exact track segment coordinates.
-* **Corridor Bundling Solver:** Models track possessions as a multidimensional bin-packing and scheduling problem over constrained corridor intervals. Overlapping requests across civil, signalling, and electrical domains are assembled into consolidated possession windows.
-* **Stochastic Disruption Resolver:** Evaluates candidate maintenance windows against dynamic passenger (e.g., *Deccan Queen*, *Pune–Mumbai Express*) and freight itineraries. Timetable deviations trigger automated schedule adjustments to prevent delay amplification.
-* **Interlock Protocol:** Produces an operational dispatch recommendation with quantitative delay projections, requiring single-click sign-off from Section Controllers prior to line possession issuance.
-
----
-
-## Mathematical Formulation & Objective Functions
-
-The scheduling core models block assignment as a constrained optimization problem. For a set of maintenance activities $\mathcal{A}$ across departments $D = \{\text{Track}, \text{Signal}, \text{Traction}\}$ over time horizon $\mathcal{T}$:
-
-$$\min \quad Z = \alpha \sum_{i \in \mathcal{A}} \Delta t_{\text{delay}}(i) + \beta \sum_{b \in \mathcal{B}} C_{\text{possession}}(b) + \gamma \sum_{j \in \mathcal{M}} D_{\text{idle}}(j)$$
 
 Where:
-* $\Delta t_{\text{delay}}(i)$ represents projected train path delay generated by activity $i$.
-* $C_{\text{possession}}(b)$ denotes the fixed line possession cost of block $b$.
-* $D_{\text{idle}}(j)$ captures dead mileage and equipment transfer latency for machine $j$.
-* $\alpha, \beta, \gamma$ are operational weighting factors calibrated to corridor priority tiers.
 
-Subject to spatial clearance, departmental crew availability, minimum headways, and non-overlapping track segments.
+- **Projected train delay** is the estimated timetable impact of scheduled activities.
+- **Possession cost** represents the operational overhead associated with a maintenance block.
+- **Equipment idle and transfer time** represents waiting and movement between work locations.
+- **α, β, and γ** are configurable weighting factors.
 
----
+The model may account for constraints such as:
 
-## Empirical Evaluation (Pune Division Pilot)
+- Track-segment and spatial-clearance requirements.
+- Maintenance activity duration and time windows.
+- Crew and equipment availability.
+- Train headways and timetable conflicts.
+- Non-overlapping use of track resources.
 
-The framework was evaluated using empirical operational data from the Central Railway Pune Division, specifically across the Pune–Mumbai and Pune–Solapur corridors:
+The exact constraints and solver behavior depend on the implementation and input data.
 
-| Metric | Empirical Baseline | CRMP System Output | Variance ($\Delta$) |
+## Reported pilot results
+
+The figures below are reported results for the Pune Division pilot described by the project team. They should be interpreted in the context of the pilot data, assumptions, and evaluation methodology; they are not a guarantee of results in other settings.
+
+| Metric | Baseline | Reported CRMP result | Reported change |
 | :--- | :--- | :--- | :--- |
-| **Annual Corridor Delay Hours** | 1,400 hrs | 600 hrs | **-57.1%** |
-| **Maintenance Corridor Bundling** | Decoupled closures | Coordinated multi-team blocks | **+25.0% efficiency** |
-| **Crew Deployment Optimization** | Unsynchronized | Automated roster coordination | **+35.0% utilization** |
-| **Operational Fuel / Traction Loss**| High idle queuing | Optimized clearance profiles | **-20.0% idle burn** |
-| **Direct Economic Reclamation** | High disruption overhead | Consolidated block execution | **~₹60 Cr / yr (Pune–Solapur)** |
+| Annual corridor delay hours | 1,400 hours | 600 hours | −57.1% |
+| Maintenance planning | Decoupled closures | Coordinated multi-team blocks | +25.0% bundling efficiency |
+| Crew deployment | Unsynchronized | Coordinated rosters | +35.0% utilization |
+| Idle fuel/traction loss | High idle queuing | Optimized clearance profiles | −20.0% idle burn |
+| Direct economic reclamation | — | Approximately ₹60 crore/year on Pune–Solapur | Reported estimate |
 
----
+## Technology stack
 
-## Architecture & Technical Implementation
+- **Optimization:** Python 3.11, Google OR-Tools, NumPy, and SciPy
+- **API:** FastAPI
+- **Background tasks:** Celery and Redis
+- **Geospatial data:** PostgreSQL 16 with PostGIS
+- **Frontend:** Next.js 14, TypeScript, and Tailwind CSS
+- **Integrations:** Designed for compatibility with railway EAM and COA interfaces
 
-* **Optimization Core:** Python 3.11, Google OR-Tools (Constraint Programming & MILP solvers), NumPy/SciPy.
-* **Service Architecture:** FastAPI asynchronous runtime, Celery task workers with Redis broker for real-time dispatch calculations.
-* **Geospatial Engine:** PostgreSQL 16 with PostGIS extension for linear asset referencing and kilometer-post resolution.
-* **Interface Layer:** Next.js (TypeScript, Tailwind CSS) providing spatial visualization maps and real-time conflict matrices.
-* **Integrations:** Designed for ingest compatibility with railway Enterprise Asset Management (EAM) and Control Office Application (COA) interfaces.
-
----
-
-## Installation & Local Reproduction
+## Getting started
 
 ### Prerequisites
-* Python 3.11+
-* Node.js 18+
-* PostgreSQL with PostGIS
 
-### 1. Repository Setup
+- Python 3.11 or newer
+- Node.js 18 or newer
+- PostgreSQL with the PostGIS extension
+- Redis, if using Celery background workers
+
+### Clone the repository
+
 ```bash
-git clone [https://github.com/prachisingh24-ctrl/Cognitive-Rail-Planner.git](https://github.com/prachisingh24-ctrl/Cognitive-Rail-Planner.git)
+git clone https://github.com/prachisingh24-ctrl/Cognitive-Rail-Planner.git
 cd Cognitive-Rail-Planner
-
 ```
 
-### 2. Optimization Engine & API Server
+### Set up the backend
 
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
 ```
 
-### 3. Spatial Monitoring Interface
+Activate the virtual environment:
 
 ```bash
-cd ../frontend
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
+
+Install dependencies and configure the environment:
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `.env` with the required database, Redis, and application settings. Then start the API:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+### Set up the frontend
+
+In a separate terminal:
+
+```bash
+cd frontend
 npm install
 npm run build
 npm start
-
 ```
 
----
+## Configuration
 
-## Research & Project Attributes
+Configure secrets and environment-specific settings through environment variables or the `.env` file. Do not commit credentials, API keys, or production connection strings to the repository.
 
-* **Program:** Bharat Agentic 2026
-* **Track:** GovTech / Mobility Infrastructure
-* **Project Team:** Team Vortex
-* **Lead Researcher / Developer:** Prachi Singh
+Before running the application, confirm that:
 
-```
+- PostgreSQL is available and PostGIS is enabled.
+- Database connection settings are correct.
+- Redis is running if background tasks are enabled.
+- The backend and frontend environment variables are configured.
 
+## Project status and limitations
+
+CRMP is intended as a decision-support and planning framework. Its recommendations depend on the accuracy and completeness of maintenance, asset, crew, equipment, and timetable data. Solver outputs must be validated against operational rules and approved by authorized personnel.
+
+The reported pilot metrics are project-reported results. Reproduction requires access to the underlying datasets, model configuration, and evaluation procedure.
+
+## Project information
+
+- **Program:** Bharat Agentic 2026
+- **Track:** GovTech / Mobility Infrastructure
+- **Team:** Team Vortex
+- **Lead researcher/developer:** Prachi Singh
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 ```
