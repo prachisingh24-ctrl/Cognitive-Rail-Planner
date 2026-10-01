@@ -1,4 +1,5 @@
 ```markdown
+```
 # Cognitive Rail Maintenance Planner (CRMP)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -11,7 +12,7 @@ CRMP is a decision-support framework for coordinating track maintenance across h
 
 > **Operational note:** CRMP is a planning aid, not a railway interlocking or movement-authority system. All recommendations must be reviewed and approved by authorized railway personnel before operational use.
 
-## Overview
+# Overview
 
 In busy railway networks, maintenance teams may request corridor closures independently. This can lead to:
 
@@ -21,9 +22,8 @@ In busy railway networks, maintenance teams may request corridor closures indepe
 
 CRMP is designed to combine compatible work requests into coordinated possession windows while accounting for spatial, temporal, resource, and timetable constraints.
 
-## Decision pipeline
-
-```text
+# Decision pipeline
+```
 Fault reports and asset telemetry
                  │
                  ▼
