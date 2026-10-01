@@ -1,5 +1,4 @@
 ```markdown
-```markdown
 # Cognitive Rail Maintenance Planner (CRMP)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
